@@ -1,5 +1,5 @@
-import { BANK_NAME, ACCOUNT_NUMBER, ACCOUNT_NAME, WHATSAPP_NUMBER } from '../Config'
-import { fmt, buildWhatsAppMessage } from '../Utils'
+import { BANK_NAME, ACCOUNT_NUMBER, ACCOUNT_NAME, WHATSAPP_NUMBER } from '../config'
+import { fmt, buildWhatsAppMessage } from '../utils'
 import CopyButton from '../components/CopyButton'
 import WhatsAppIcon from '../components/WhatsAppIcon'
 

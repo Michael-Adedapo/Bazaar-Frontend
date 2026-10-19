@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
-import { MENU, ALL_ITEMS, DISCOUNT_THRESHOLD, API_URL } from '../Config'
-import { fmt, localRef } from '../Utils'
+import { MENU, ALL_ITEMS, DISCOUNT_THRESHOLD, API_URL } from '../config'
+import { fmt, localRef } from '../utils'
 
 const LS_KEY = 'bol_bazaar_draft'
 
