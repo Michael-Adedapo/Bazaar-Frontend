@@ -23,8 +23,8 @@ export const ALL_ITEMS          = MENU.flatMap(g => g.items)
 export const DISCOUNT_THRESHOLD = 30_000
 
 // ─── Config (set these in .env) ──────────────────────────────────────────────
-export const WHATSAPP_NUMBER = import.meta.env.VITE_WHATSAPP_NUMBER || '2348000000000'
-export const BANK_NAME       = import.meta.env.VITE_BANK_NAME       || 'GTBank'
-export const ACCOUNT_NUMBER  = import.meta.env.VITE_ACCOUNT_NUMBER  || '0123456789'
-export const ACCOUNT_NAME    = import.meta.env.VITE_ACCOUNT_NAME    || 'BOL Bazaar'
-export const API_URL         = import.meta.env.VITE_API_URL         || 'http://localhost:8000'
+export const WHATSAPP_NUMBER = import.meta.env.VITE_WHATSAPP_NUMBER 
+export const BANK_NAME       = import.meta.env.VITE_BANK_NAME       
+export const ACCOUNT_NUMBER  = import.meta.env.VITE_ACCOUNT_NUMBER  
+export const ACCOUNT_NAME    = import.meta.env.VITE_ACCOUNT_NAME    
+export const API_URL         = import.meta.env.VITE_API_URL         

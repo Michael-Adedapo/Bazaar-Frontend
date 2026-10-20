@@ -1,4 +1,4 @@
-import { WHATSAPP_NUMBER, BANK_NAME, ACCOUNT_NAME } from './Config'
+import { WHATSAPP_NUMBER, BANK_NAME, ACCOUNT_NAME } from './config'
 
 // Format a number as Nigerian Naira
 export function fmt(n) {
