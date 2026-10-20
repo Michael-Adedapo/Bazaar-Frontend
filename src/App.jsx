@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import AdminSection from './AdminSection'
-import OrderForm from './pages/OrderForm'
+import OrderForm, { clearDraft } from './pages/OrderForm'
 import PaymentStep from './pages/PaymentStep'
 import DoneScreen from './pages/DoneScreen'
 
@@ -42,6 +42,7 @@ export default function App() {
   }
 
   function handleWhatsAppSent() {
+    clearDraft()          // order is confirmed — wipe the cart draft
     setStep('done')
     saveSession('done', order)
   }
@@ -50,6 +51,7 @@ export default function App() {
     setStep('form')
     setOrder(null)
     clearSession()
+    clearDraft()          // fresh start — wipe everything
   }
 
   if (step === 'payment') return <PaymentStep order={order} onWhatsAppSent={handleWhatsAppSent} onBack={() => { setStep('form'); clearSession() }} />

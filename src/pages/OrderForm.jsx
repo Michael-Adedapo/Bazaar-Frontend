@@ -15,7 +15,7 @@ function saveDraft(data) {
   try { localStorage.setItem(LS_KEY, JSON.stringify(data)) } catch {}
 }
 
-function clearDraft() {
+export function clearDraft() {
   try { localStorage.removeItem(LS_KEY) } catch {}
 }
 
@@ -60,9 +60,8 @@ export default function OrderForm({ onComplete }) {
       return { id, name: it.name, price: it.price, quantity }
     })
 
-    let order_id = localRef() // always have a ref ready
+    let order_id = localRef()
 
-    // Try to record with backend; if it fails, proceed anyway with local ref
     try {
       const res = await fetch(`${API_URL}/api/orders`, {
         method: 'POST',
@@ -77,7 +76,7 @@ export default function OrderForm({ onComplete }) {
       // Backend unreachable — continue with local ref, WhatsApp is the source of truth
     }
 
-    clearDraft()
+    // Draft is NOT cleared here — cleared only after payment is confirmed
     onComplete({ order_id, customer_name: name, customer_phone: phone, items, subtotal, discount, total })
     setBusy(false)
   }
