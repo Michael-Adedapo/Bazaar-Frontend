@@ -142,9 +142,9 @@ export default function AdminDashboard({ onLogout }) {
   }
 
   // Total sales = sum of all confirmed order totals
-  const totalSales = orders
-    .filter(o => o.status === 'confirmed')
-    .reduce((sum, o) => sum + (o.total ?? 0), 0)
+ const totalSales = orders
+  .filter(o => o.status === 'confirmed')
+  .reduce((sum, o) => sum + (o.total ?? o.pricing?.amount_due ?? 0), 0)
 
   const filtered =
     filter === 'all' ? orders : orders.filter(o => (o.status || 'pending') === filter)
@@ -325,7 +325,7 @@ export default function AdminDashboard({ onLogout }) {
                           <span className="line-clamp-2">{formatItems(order.items)}</span>
                         </td>
                         <td className="px-4 py-3 text-right font-semibold text-gray-900 whitespace-nowrap">
-                          {fmt(order.total)}
+                          {fmt(order.total ?? order.pricing?.amount_due)}
                         </td>
                         <td className="px-4 py-3 text-gray-500 text-xs whitespace-nowrap">
                           {formatDate(order.created_at)}
