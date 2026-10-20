@@ -142,9 +142,9 @@ export default function AdminDashboard({ onLogout }) {
   }
 
   // Total sales = sum of all confirmed order totals
- const totalSales = orders
-  .filter(o => o.status === 'confirmed')
-  .reduce((sum, o) => sum + (o.total ?? o.pricing?.amount_due ?? 0), 0)
+  const totalSales = orders
+    .filter(o => o.status === 'confirmed')
+    .reduce((sum, o) => sum + (o.total ?? o.pricing?.amount_due ?? 0), 0)
 
   const filtered =
     filter === 'all' ? orders : orders.filter(o => (o.status || 'pending') === filter)
@@ -174,6 +174,91 @@ export default function AdminDashboard({ onLogout }) {
   const getName  = (o) => o.customer_name  ?? o.name  ?? '—'
   const getPhone = (o) => o.customer_phone ?? o.phone ?? o.whatsapp ?? '—'
 
+  const exportPDF = () => {
+    const date = new Date().toLocaleDateString('en-NG', { day: 'numeric', month: 'long', year: 'numeric' })
+
+    const rows = orders.map(o => {
+      const total = o.total ?? o.pricing?.amount_due ?? 0
+      const items = Array.isArray(o.items)
+        ? o.items.map(i => {
+            const qty = i.quantity ?? i.qty ?? 1
+            return `${i.name}${qty > 1 ? ` ×${qty}` : ''}`
+          }).join(', ')
+        : (o.items ?? '—')
+      const status = o.status ?? 'pending'
+      const statusColor = status === 'confirmed' ? '#16a34a' : status === 'cancelled' ? '#dc2626' : '#d97706'
+
+      return `
+        <tr>
+          <td>${String(getId(o)).slice(-8).toUpperCase()}</td>
+          <td>${getName(o)}</td>
+          <td>${getPhone(o)}</td>
+          <td class="items">${items}</td>
+          <td class="right">₦${Number(total).toLocaleString('en-NG')}</td>
+          <td>${o.created_at ? new Date(o.created_at).toLocaleString('en-NG', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—'}</td>
+          <td><span style="color:${statusColor};font-weight:600;text-transform:capitalize">${status}</span></td>
+        </tr>`
+    }).join('')
+
+    const html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>BOL Bazaar — Sales Report</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: Arial, sans-serif; font-size: 11px; color: #111; padding: 32px; }
+    header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; border-bottom: 2px solid #ea580c; padding-bottom: 16px; }
+    header h1 { font-size: 22px; color: #ea580c; }
+    header p { font-size: 11px; color: #555; margin-top: 2px; }
+    .stats { display: flex; gap: 24px; margin-bottom: 24px; }
+    .stat { background: #fff7ed; border: 1px solid #fed7aa; border-radius: 8px; padding: 10px 16px; }
+    .stat-label { font-size: 10px; color: #777; }
+    .stat-value { font-size: 16px; font-weight: 700; color: #ea580c; }
+    table { width: 100%; border-collapse: collapse; }
+    thead tr { background: #ea580c; color: white; }
+    thead th { padding: 8px 10px; text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; }
+    thead th.right { text-align: right; }
+    tbody tr:nth-child(even) { background: #fafafa; }
+    tbody tr { border-bottom: 1px solid #eee; }
+    tbody td { padding: 7px 10px; vertical-align: top; }
+    tbody td.right { text-align: right; font-weight: 600; }
+    tbody td.items { max-width: 200px; color: #444; }
+    @media print {
+      @page { margin: 20mm; size: A4 landscape; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>🍽️ BOL Bazaar</h1>
+      <p>Sales Report — Generated ${date}</p>
+    </div>
+    <div style="text-align:right">
+      <p style="font-size:13px;font-weight:700">Total Orders: ${orders.length}</p>
+      <p style="font-size:13px;font-weight:700;color:#16a34a">Total Sales: ₦${Number(totalSales).toLocaleString('en-NG')}</p>
+    </div>
+  </header>
+  <table>
+    <thead>
+      <tr>
+        <th>Ref</th><th>Customer</th><th>WhatsApp</th><th>Items</th>
+        <th class="right">Total</th><th>Date</th><th>Status</th>
+      </tr>
+    </thead>
+    <tbody>${rows}</tbody>
+  </table>
+</body>
+</html>`
+
+    const win = window.open('', '_blank')
+    win.document.write(html)
+    win.document.close()
+    win.focus()
+    setTimeout(() => { win.print() }, 500)
+  }
+
   const skeletonStats = Array.from({ length: 5 }).map((_, i) => (
     <div key={i} className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm animate-pulse">
       <div className="h-2.5 w-20 bg-gray-100 rounded mb-3" />
@@ -194,6 +279,13 @@ export default function AdminDashboard({ onLogout }) {
             </div>
           </div>
           <div className="flex items-center gap-4">
+            <button
+              onClick={exportPDF}
+              disabled={loading || orders.length === 0}
+              className="text-sm bg-orange-50 text-orange-600 hover:bg-orange-100 disabled:opacity-40 px-3 py-1.5 rounded-lg font-medium transition-colors flex items-center gap-1.5"
+            >
+              ↓ Export PDF
+            </button>
             <button
               onClick={fetchOrders}
               disabled={loading}
