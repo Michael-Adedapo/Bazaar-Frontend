@@ -2,6 +2,10 @@ import { useState, useEffect, useCallback } from 'react'
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
+function fmt(n) {
+  return '₦' + Number(n ?? 0).toLocaleString('en-NG')
+}
+
 function StatusBadge({ status }) {
   const map = {
     pending:   'bg-yellow-100 text-yellow-700',
@@ -21,6 +25,54 @@ function StatCard({ label, value, color }) {
     <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
       <p className="text-xs text-gray-500 mb-1">{label}</p>
       <p className={`text-2xl font-bold ${color}`}>{value}</p>
+    </div>
+  )
+}
+
+function BestSellers({ orders }) {
+  // Aggregate item quantities across all orders
+  const counts = {}
+  orders.forEach(o => {
+    if (!Array.isArray(o.items)) return
+    o.items.forEach(item => {
+      const name = item.name ?? item.id ?? 'Unknown'
+      const qty  = item.quantity ?? item.qty ?? 1
+      counts[name] = (counts[name] ?? 0) + qty
+    })
+  })
+
+  const ranked = Object.entries(counts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 8)
+
+  if (ranked.length === 0) return null
+
+  const max = ranked[0][1]
+
+  return (
+    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+      <h2 className="text-sm font-semibold text-gray-700 mb-4">Best Sellers</h2>
+      <div className="space-y-2.5">
+        {ranked.map(([name, qty], i) => (
+          <div key={name} className="flex items-center gap-3">
+            <span className="w-5 text-xs font-bold text-gray-400 text-right shrink-0">
+              {i + 1}
+            </span>
+            <div className="flex-1 min-w-0">
+              <div className="flex justify-between text-xs mb-1">
+                <span className="font-medium text-gray-800 truncate">{name}</span>
+                <span className="text-gray-500 shrink-0 ml-2">{qty} ordered</span>
+              </div>
+              <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-orange-400 transition-all duration-500"
+                  style={{ width: `${(qty / max) * 100}%` }}
+                />
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   )
 }
@@ -50,7 +102,6 @@ export default function AdminDashboard({ onLogout }) {
       if (res.status === 401) { onLogout(); return }
       if (!res.ok) throw new Error()
       const data = await res.json()
-      // newest first — handle both array and {orders:[]} shapes
       const list = Array.isArray(data) ? data : (data.orders ?? [])
       setOrders([...list].reverse())
     } catch {
@@ -90,6 +141,11 @@ export default function AdminDashboard({ onLogout }) {
     cancelled: orders.filter(o => o.status === 'cancelled').length,
   }
 
+  // Total sales = sum of all confirmed order totals
+  const totalSales = orders
+    .filter(o => o.status === 'confirmed')
+    .reduce((sum, o) => sum + (o.total ?? 0), 0)
+
   const filtered =
     filter === 'all' ? orders : orders.filter(o => (o.status || 'pending') === filter)
 
@@ -105,11 +161,25 @@ export default function AdminDashboard({ onLogout }) {
     if (!items) return '—'
     if (typeof items === 'string') return items
     if (Array.isArray(items))
-      return items.map(i => `${i.name}${i.qty > 1 ? ` ×${i.qty}` : ''}`).join(', ')
+      return items.map(i => {
+        const qty = i.quantity ?? i.qty ?? 1
+        return `${i.name}${qty > 1 ? ` ×${qty}` : ''}`
+      }).join(', ')
     return JSON.stringify(items)
   }
 
   const getId = (o) => o._id ?? o.ref ?? o.id
+
+  // Field name helpers — backend saves customer_name / customer_phone
+  const getName  = (o) => o.customer_name  ?? o.name  ?? '—'
+  const getPhone = (o) => o.customer_phone ?? o.phone ?? o.whatsapp ?? '—'
+
+  const skeletonStats = Array.from({ length: 5 }).map((_, i) => (
+    <div key={i} className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm animate-pulse">
+      <div className="h-2.5 w-20 bg-gray-100 rounded mb-3" />
+      <div className="h-7 w-10 bg-gray-100 rounded" />
+    </div>
+  ))
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -148,24 +218,22 @@ export default function AdminDashboard({ onLogout }) {
       </header>
 
       <main className="max-w-6xl mx-auto px-4 py-6 space-y-6">
+
         {/* Stats row */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {loading ? (
-            Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm animate-pulse">
-                <div className="h-2.5 w-20 bg-gray-100 rounded mb-3" />
-                <div className="h-7 w-10 bg-gray-100 rounded" />
-              </div>
-            ))
-          ) : (
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+          {loading ? skeletonStats : (
             <>
-              <StatCard label="Total Orders"  value={counts.all}       color="text-gray-900" />
-              <StatCard label="Pending"       value={counts.pending}   color="text-yellow-600" />
-              <StatCard label="Confirmed"     value={counts.confirmed} color="text-green-600" />
-              <StatCard label="Cancelled"     value={counts.cancelled} color="text-red-600" />
+              <StatCard label="Total Sales (confirmed)" value={fmt(totalSales)} color="text-orange-600" />
+              <StatCard label="Total Orders"            value={counts.all}       color="text-gray-900" />
+              <StatCard label="Pending"                 value={counts.pending}   color="text-yellow-600" />
+              <StatCard label="Confirmed"               value={counts.confirmed} color="text-green-600" />
+              <StatCard label="Cancelled"               value={counts.cancelled} color="text-red-600" />
             </>
           )}
         </div>
+
+        {/* Best sellers */}
+        {!loading && !error && <BestSellers orders={orders} />}
 
         {/* Filter tabs */}
         <div className="flex gap-2 flex-wrap">
@@ -184,7 +252,7 @@ export default function AdminDashboard({ onLogout }) {
           ))}
         </div>
 
-        {/* Content */}
+        {/* Orders table */}
         {error ? (
           <div className="bg-red-50 border border-red-100 text-red-600 rounded-xl p-6 text-center text-sm">
             {error}
@@ -195,14 +263,9 @@ export default function AdminDashboard({ onLogout }) {
               <table className="w-full text-sm">
                 <thead className="bg-gray-50 border-b border-gray-100">
                   <tr className="text-xs text-gray-500 uppercase tracking-wide">
-                    <th className="px-4 py-3 text-left font-medium">Ref</th>
-                    <th className="px-4 py-3 text-left font-medium">Customer</th>
-                    <th className="px-4 py-3 text-left font-medium">WhatsApp</th>
-                    <th className="px-4 py-3 text-left font-medium">Items</th>
-                    <th className="px-4 py-3 text-right font-medium">Total</th>
-                    <th className="px-4 py-3 text-left font-medium">Date</th>
-                    <th className="px-4 py-3 text-left font-medium">Status</th>
-                    <th className="px-4 py-3 text-left font-medium">Actions</th>
+                    {['Ref','Customer','WhatsApp','Items','Total','Date','Status','Actions'].map(h => (
+                      <th key={h} className={`px-4 py-3 font-medium ${h === 'Total' ? 'text-right' : 'text-left'}`}>{h}</th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
@@ -232,20 +295,15 @@ export default function AdminDashboard({ onLogout }) {
               <table className="w-full text-sm">
                 <thead className="bg-gray-50 border-b border-gray-100">
                   <tr className="text-xs text-gray-500 uppercase tracking-wide">
-                    <th className="px-4 py-3 text-left font-medium">Ref</th>
-                    <th className="px-4 py-3 text-left font-medium">Customer</th>
-                    <th className="px-4 py-3 text-left font-medium">WhatsApp</th>
-                    <th className="px-4 py-3 text-left font-medium">Items</th>
-                    <th className="px-4 py-3 text-right font-medium">Total</th>
-                    <th className="px-4 py-3 text-left font-medium">Date</th>
-                    <th className="px-4 py-3 text-left font-medium">Status</th>
-                    <th className="px-4 py-3 text-left font-medium">Actions</th>
+                    {['Ref','Customer','WhatsApp','Items','Total','Date','Status','Actions'].map(h => (
+                      <th key={h} className={`px-4 py-3 font-medium ${h === 'Total' ? 'text-right' : 'text-left'}`}>{h}</th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
                   {filtered.map(order => {
-                    const id = getId(order)
-                    const phone = order.phone ?? order.whatsapp ?? ''
+                    const id     = getId(order)
+                    const phone  = getPhone(order)
                     const status = order.status || 'pending'
                     return (
                       <tr key={id} className="hover:bg-gray-50 transition-colors">
@@ -253,23 +311,21 @@ export default function AdminDashboard({ onLogout }) {
                           {String(id).slice(-8).toUpperCase()}
                         </td>
                         <td className="px-4 py-3 font-medium text-gray-900 whitespace-nowrap">
-                          {order.name}
+                          {getName(order)}
                         </td>
                         <td className="px-4 py-3">
-                          <a
-                            href={`https://wa.me/${phone}`}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="text-green-600 hover:underline"
-                          >
-                            {phone}
-                          </a>
+                          {phone !== '—' ? (
+                            <a href={`https://wa.me/${phone}`} target="_blank" rel="noreferrer"
+                              className="text-green-600 hover:underline">
+                              {phone}
+                            </a>
+                          ) : '—'}
                         </td>
                         <td className="px-4 py-3 text-gray-600 max-w-xs">
                           <span className="line-clamp-2">{formatItems(order.items)}</span>
                         </td>
                         <td className="px-4 py-3 text-right font-semibold text-gray-900 whitespace-nowrap">
-                          ₦{Number(order.total ?? 0).toLocaleString()}
+                          {fmt(order.total)}
                         </td>
                         <td className="px-4 py-3 text-gray-500 text-xs whitespace-nowrap">
                           {formatDate(order.created_at)}
@@ -280,26 +336,20 @@ export default function AdminDashboard({ onLogout }) {
                         <td className="px-4 py-3">
                           <div className="flex gap-1.5">
                             {status === 'pending' && (
-                              <button
-                                onClick={() => updateStatus(id, 'confirmed')}
-                                className="text-xs bg-green-50 text-green-700 hover:bg-green-100 px-2 py-1 rounded-lg font-medium transition-colors"
-                              >
+                              <button onClick={() => updateStatus(id, 'confirmed')}
+                                className="text-xs bg-green-50 text-green-700 hover:bg-green-100 px-2 py-1 rounded-lg font-medium transition-colors">
                                 ✓ Confirm
                               </button>
                             )}
                             {status === 'pending' && (
-                              <button
-                                onClick={() => updateStatus(id, 'cancelled')}
-                                className="text-xs bg-red-50 text-red-600 hover:bg-red-100 px-2 py-1 rounded-lg font-medium transition-colors"
-                              >
+                              <button onClick={() => updateStatus(id, 'cancelled')}
+                                className="text-xs bg-red-50 text-red-600 hover:bg-red-100 px-2 py-1 rounded-lg font-medium transition-colors">
                                 ✕
                               </button>
                             )}
                             {status === 'confirmed' && (
-                              <button
-                                onClick={() => updateStatus(id, 'pending')}
-                                className="text-xs bg-gray-50 text-gray-600 hover:bg-gray-100 px-2 py-1 rounded-lg font-medium transition-colors"
-                              >
+                              <button onClick={() => updateStatus(id, 'pending')}
+                                className="text-xs bg-gray-50 text-gray-600 hover:bg-gray-100 px-2 py-1 rounded-lg font-medium transition-colors">
                                 Undo
                               </button>
                             )}
