@@ -1,21 +1,41 @@
 // ─── Menu data ───────────────────────────────────────────────────────────────
 export const MENU = [
   {
+    category: 'Specials',
+    items: [
+      { id: 'full-chicken',        name: 'Full Chicken',          price: 15000 },
+      { id: 'catfish-pepper-soup', name: 'Catfish Pepper Soup',   price: 20000 },
+      { id: 'guinea-fowl',         name: 'Guinea Fowl',           price: 15000 },
+    ]
+  },
+  {
     category: 'Plates',
     items: [
-      { id: 'f1', name: 'Jollof Rice & Chicken',  price: 3500 },
-      { id: 'f2', name: 'Fried Rice & Beef',       price: 3000 },
-      { id: 'f3', name: 'Special Asun Portion',    price: 4000 },
-      { id: 'f4', name: 'Special Praited Rogs',    price: 5000 },
-    ],
+      { id: 'jollof-rice',         name: 'Jollof Rice',                  price:  3000 },
+      { id: 'jollof-rice-beef',    name: 'Jollof Rice & Beef',           price:  4000 },
+      { id: 'jollof-rice-chicken', name: 'Jollof Rice & Chicken Laps',   price:  7500 },
+      { id: 'peppered-ponmo',      name: 'Peppered Ponmo (Bowl)',        price:  1500 },
+      { id: 'moi-moi-egg',         name: 'Moi-Moi (With Egg)',           price:  1000 },
+      { id: 'moi-moi-no-egg',      name: 'Moi-Moi (Without Egg)',        price:   700 },
+      { id: 'chicken-laps',        name: 'Chicken Laps',                 price:  5000 },
+      { id: 'stir-fry-spaghetti',  name: 'Stir-Fry Spaghetti & Turkey', price:  5000 },
+    ]
   },
   {
     category: 'Drinks',
     items: [
-      { id: 'd1', name: 'Chilled Soft Drink',  price:  500 },
-      { id: 'd2', name: 'Fresh Fruit Juice',   price: 1200 },
-      { id: 'd3', name: 'Bottled Water',       price:  300 },
-    ],
+      { id: 'guinness-small', name: 'Guinness Small',  price: 1500 },
+      { id: 'malta-guinness', name: 'Malta Guinness',  price: 1000 },
+      { id: 'amstel-malta',   name: 'Amstel Malta',    price: 1000 },
+      { id: 'desperados',     name: 'Desperados',      price: 2000 },
+      { id: 'smirnoff-ice',   name: 'Smirnoff Ice',    price: 1500 },
+      { id: 'heineken',       name: 'Heineken',        price: 2000 },
+      { id: 'orijin-beer',    name: 'Orijin Beer',     price: 2000 },
+      { id: 'water',          name: 'Bottle Water',    price:  500 },
+      { id: 'soft-drinks',    name: 'Soft Drinks',     price: 1000 },
+      { id: 'star-radler',    name: 'Star Radler',     price: 1500 },
+      { id: 'gulder',         name: 'Gulder',          price: 2000 },
+    ]
   },
 ]
 
