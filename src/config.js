@@ -6,14 +6,15 @@ export const MENU = [
       { id: 'full-chicken',        name: 'Full Chicken',          price: 15000 },
       { id: 'catfish-pepper-soup', name: 'Catfish Pepper Soup',   price: 20000 },
       { id: 'guinea-fowl',         name: 'Guinea Fowl',           price: 15000 },
+      { id: 'Chef Ada\'s Special Fried Rice', name: 'Chef Ada\'s Special Fried Rice', price: 8000 },
     ]
   },
   {
     category: 'Plates',
     items: [
-      { id: 'jollof-rice',         name: 'Jollof Rice',                  price:  3000 },
-      { id: 'jollof-rice-beef',    name: 'Jollof Rice & Beef',           price:  4000 },
-      { id: 'jollof-rice-chicken', name: 'Jollof Rice & Chicken Laps',   price:  7500 },
+      { id: 'jollof-rice',         name: 'Jollof Rice',                  price:  3500 },
+      { id: 'jollof-rice-beef',    name: 'Jollof Rice & Beef',           price:  4500 },
+      { id: 'jollof-rice-chicken', name: 'Jollof Rice & Chicken Laps',   price:  8000 },
       { id: 'peppered-ponmo',      name: 'Peppered Ponmo (Bowl)',        price:  1500 },
       { id: 'moi-moi-egg',         name: 'Moi-Moi (With Egg)',           price:  1000 },
       { id: 'moi-moi-no-egg',      name: 'Moi-Moi (Without Egg)',        price:   700 },
