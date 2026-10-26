@@ -19,7 +19,6 @@ export const MENU = [
       { id: 'moi-moi-egg',         name: 'Moi-Moi (With Egg)',           price:  1000 },
       { id: 'moi-moi-no-egg',      name: 'Moi-Moi (Without Egg)',        price:   700 },
       { id: 'chicken-laps',        name: 'Chicken Laps',                 price:  5000 },
-      { id: 'stir-fry-spaghetti',  name: 'Stir-Fry Spaghetti & Turkey', price:  5000 },
     ]
   },
   {
