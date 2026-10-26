@@ -25,17 +25,16 @@ export const MENU = [
   {
     category: 'Drinks',
     items: [
-      { id: 'guinness-small', name: 'Guinness Small',  price: 1500 },
+      { id: 'guinness-small', name: 'Guinness Small',  price: 1700 },
       { id: 'malta-guinness', name: 'Malta Guinness',  price: 1000 },
       { id: 'amstel-malta',   name: 'Amstel Malta',    price: 1000 },
-      { id: 'desperados',     name: 'Desperados',      price: 2000 },
+      { id: 'desperados',     name: 'Desperados',      price: 1500 },
       { id: 'smirnoff-ice',   name: 'Smirnoff Ice',    price: 1500 },
       { id: 'heineken',       name: 'Heineken',        price: 2000 },
-      { id: 'orijin-beer',    name: 'Orijin Beer',     price: 2000 },
       { id: 'water',          name: 'Bottle Water',    price:  500 },
       { id: 'soft-drinks',    name: 'Soft Drinks',     price: 1000 },
       { id: 'star-radler',    name: 'Star Radler',     price: 1500 },
-      { id: 'gulder',         name: 'Gulder',          price: 2000 },
+      { id: 'gulder',         name: 'Gulder',          price: 1700 },
     ]
   },
 ]
