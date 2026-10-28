@@ -82,9 +82,6 @@ export default function AdminDashboard({ onLogout }) {
   const [loading, setLoading]       = useState(true)
   const [error, setError]           = useState('')
   const [filter, setFilter]         = useState('all')
-  const [clearing, setClearing]     = useState(false)
-  const [clearDone, setClearDone]   = useState(false)
-
   const token = sessionStorage.getItem('admin_token')
 
   const authedFetch = useCallback(
@@ -114,28 +111,6 @@ export default function AdminDashboard({ onLogout }) {
   }, [authedFetch, onLogout])
 
   useEffect(() => { fetchOrders() }, [fetchOrders])
-
-  const clearOrders = async () => {
-    const confirmed = window.confirm(
-      '⚠️ This will permanently delete ALL beta test orders.\n\nAre you sure you want to continue?'
-    )
-    if (!confirmed) return
-
-    setClearing(true)
-    setClearDone(false)
-    try {
-      const res = await authedFetch(`${API}/api/orders/clear`, { method: 'DELETE' })
-      if (res.status === 401) { onLogout(); return }
-      if (!res.ok) throw new Error()
-      setOrders([])
-      setClearDone(true)
-      setTimeout(() => setClearDone(false), 4000)
-    } catch {
-      alert('Failed to clear orders. Check your backend.')
-    } finally {
-      setClearing(false)
-    }
-  }
 
   const updateStatus = async (id, status) => {
     try {
@@ -309,13 +284,6 @@ export default function AdminDashboard({ onLogout }) {
               className="text-sm bg-orange-50 text-orange-600 hover:bg-orange-100 disabled:opacity-40 px-3 py-1.5 rounded-lg font-medium transition-colors flex items-center gap-1.5"
             >
               ↓ Export PDF
-            </button>
-            <button
-              onClick={clearOrders}
-              disabled={clearing || loading || orders.length === 0}
-              className="text-sm bg-red-50 text-red-600 hover:bg-red-100 disabled:opacity-40 px-3 py-1.5 rounded-lg font-medium transition-colors flex items-center gap-1.5"
-            >
-              {clearing ? 'Clearing…' : clearDone ? '✓ Cleared' : '🗑 Clear Beta Orders'}
             </button>
             <button
               onClick={fetchOrders}
