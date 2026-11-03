@@ -7,6 +7,7 @@ export const MENU = [
       { id: 'catfish-pepper-soup', name: 'Catfish Pepper Soup',   price: 20000 },
       { id: 'guinea-fowl',         name: 'Guinea Fowl',           price: 15000, discount: 200 },
       { id: 'Chef Ada\'s Special Fried Rice', name: 'Chef Ada\'s Special Fried Rice', price: 8500 },
+      { id: 'Chef Ada\'s Special Shawarma', name: 'Chef Ada\'s Special Shawarma', price: 4500 },
     ]
   },
   {
