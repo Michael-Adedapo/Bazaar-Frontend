@@ -3,9 +3,9 @@ export const MENU = [
   {
     category: 'Specials',
     items: [
-      { id: 'full-chicken',        name: 'Full Chicken',          price: 15000 },
+      { id: 'full-chicken',        name: 'Full Chicken',          price: 15000, discount: 200 },
       { id: 'catfish-pepper-soup', name: 'Catfish Pepper Soup',   price: 20000 },
-      { id: 'guinea-fowl',         name: 'Guinea Fowl',           price: 15000 },
+      { id: 'guinea-fowl',         name: 'Guinea Fowl',           price: 15000, discount: 200 },
       { id: 'Chef Ada\'s Special Fried Rice', name: 'Chef Ada\'s Special Fried Rice', price: 8000 },
     ]
   },
@@ -24,22 +24,21 @@ export const MENU = [
   {
     category: 'Drinks',
     items: [
-      { id: 'guinness-small', name: 'Guinness Small',  price: 1700 },
+      { id: 'guinness-small', name: 'Guinness Small',  price: 2000 },
       { id: 'malta-guinness', name: 'Malta Guinness',  price: 1000 },
       { id: 'amstel-malta',   name: 'Amstel Malta',    price: 1000 },
-      { id: 'desperados',     name: 'Desperados',      price: 1500 },
+      { id: 'desperados',     name: 'Desperados',      price: 2000 },
       { id: 'smirnoff-ice',   name: 'Smirnoff Ice',    price: 1500 },
       { id: 'heineken',       name: 'Heineken',        price: 2000 },
       { id: 'water',          name: 'Bottle Water',    price:  500 },
       { id: 'soft-drinks',    name: 'Soft Drinks',     price: 1000 },
       { id: 'star-radler',    name: 'Star Radler',     price: 1500 },
-      { id: 'gulder',         name: 'Gulder',          price: 1700 },
+      { id: 'gulder',         name: 'Gulder',          price: 2000 },
     ]
   },
 ]
 
 export const ALL_ITEMS          = MENU.flatMap(g => g.items)
-export const DISCOUNT_THRESHOLD = 30_000
 
 // ─── Config (set these in .env) ──────────────────────────────────────────────
 export const WHATSAPP_NUMBER = import.meta.env.VITE_WHATSAPP_NUMBER 

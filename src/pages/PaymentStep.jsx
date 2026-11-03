@@ -57,7 +57,7 @@ export default function PaymentStep({ order, onWhatsAppSent, onBack }) {
           </p>
           {discount > 0 && (
             <p className="text-xs text-emerald-700 font-semibold mt-1.5">
-              Includes 5% discount — you saved {fmt(discount)}
+              Includes item discounts — you saved {fmt(discount)}
             </p>
           )}
         </div>
