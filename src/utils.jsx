@@ -12,7 +12,7 @@ export function buildWhatsAppMessage({ customer_name, customer_phone, items, sub
     .join('\n')
 
   const discountLine = discount > 0
-    ? `\nDiscount (5%): −${fmt(discount)}`
+    ? `\nItem discount: −${fmt(discount)}`
     : ''
 
   return [

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { MENU, ALL_ITEMS, DISCOUNT_THRESHOLD, API_URL } from '../config'
+import { MENU, ALL_ITEMS, API_URL } from '../config'
 import { fmt, localRef } from '../utils'
 
 const LS_KEY = 'bol_bazaar_draft'
@@ -45,10 +45,11 @@ export default function OrderForm({ onComplete }) {
     const it = ALL_ITEMS.find(x => x.id === id)
     return s + (it ? it.price * q : 0)
   }, 0)
-  const discount = subtotal >= DISCOUNT_THRESHOLD ? Math.floor(subtotal * 0.05) : 0
+  const discount = cartEntries.reduce((s, [id, q]) => {
+    const it = ALL_ITEMS.find(x => x.id === id)
+    return s + (it ? (it.discount || 0) * q : 0)
+  }, 0)
   const total    = subtotal - discount
-  const pct      = Math.min(100, (subtotal / DISCOUNT_THRESHOLD) * 100)
-  const unlocked = discount > 0
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -57,7 +58,7 @@ export default function OrderForm({ onComplete }) {
 
     const items = cartEntries.map(([id, quantity]) => {
       const it = ALL_ITEMS.find(x => x.id === id)
-      return { id, name: it.name, price: it.price, quantity }
+      return { id, name: it.name, price: it.price - (it.discount || 0), quantity }
     })
 
     let order_id = localRef()
@@ -91,10 +92,8 @@ export default function OrderForm({ onComplete }) {
             bazaar pre-order
           </h1>
           <p className="mt-2.5 text-xs text-[#9E8E92] font-medium">
-            order ahead and unlock{' '}
-            <strong className="text-[#1A1215] font-bold">5% off</strong>{' '}
-            on orders over{' '}
-            <strong className="text-[#1A1215] font-bold">₦30,000</strong>
+            Get <strong className="text-[#1A1215] font-bold">₦200 off</strong>{' '}
+            each Full Chicken and Guinea Fowl
           </p>
         </header>
 
@@ -152,7 +151,16 @@ export default function OrderForm({ onComplete }) {
                             {item.name}
                           </p>
                           <p className="text-xs font-medium text-[#9E8E92] mt-0.5">
-                            {fmt(item.price)}
+                            {item.discount ? (
+                              <>
+                                <span className="line-through">{fmt(item.price)}</span>
+                                {' '}
+                                <span className="text-emerald-700 font-semibold">
+                                  {fmt(item.price - item.discount)}
+                                </span>
+                                <span className="text-emerald-700"> ({fmt(item.discount)} off)</span>
+                              </>
+                            ) : fmt(item.price)}
                           </p>
                         </div>
                         <div className="flex items-center gap-2 shrink-0"
@@ -181,33 +189,6 @@ export default function OrderForm({ onComplete }) {
                   })}
                 </div>
               ))}
-            </div>
-
-            {/* Discount progress bar */}
-            <div className="bg-white border border-[#EAE2E5] rounded-3xl p-6">
-              <div className="flex justify-between items-center mb-2.5">
-                <span className={`text-xs font-semibold transition-colors ${
-                  unlocked ? 'text-emerald-700' : 'text-[#9E8E92]'}`}>
-                  {unlocked
-                    ? '🎉 5% discount unlocked!'
-                    : `${fmt(DISCOUNT_THRESHOLD - subtotal)} away from 5% off`}
-                </span>
-                <span className="text-xs font-bold text-[#C4B4B9] tabular-nums">
-                  {Math.round(pct)}%
-                </span>
-              </div>
-              <div className="w-full h-1.5 bg-[#EAE2E5] rounded-full overflow-hidden">
-                <div
-                  className={`h-full rounded-full transition-all duration-500 ${
-                    unlocked ? 'bg-emerald-400' : 'bg-[#FFC5D3]'}`}
-                  style={{ width: `${pct}%` }}
-                  role="progressbar" aria-valuenow={Math.round(pct)}
-                  aria-valuemin={0} aria-valuemax={100}
-                />
-              </div>
-              <p className="text-[10px] text-[#C4B4B9] font-medium mt-1.5">
-                ₦30,000 threshold
-              </p>
             </div>
 
             {/* Error */}
@@ -259,7 +240,7 @@ export default function OrderForm({ onComplete }) {
                             {it.name} <span className="text-[#C4B4B9]">×{qty}</span>
                           </span>
                           <span className="font-semibold text-[#1A1215] tabular-nums">
-                            {fmt(it.price * qty)}
+                            {fmt((it.price - (it.discount || 0)) * qty)}
                           </span>
                         </div>
                       )
@@ -286,15 +267,10 @@ export default function OrderForm({ onComplete }) {
                 </div>
               </div>
             </div>
-            {unlocked && (
+            {discount > 0 && (
               <div className="mt-2.5 flex items-center gap-2 bg-emerald-50 border
                 border-emerald-200 rounded-xl px-4 py-3 text-xs font-semibold text-emerald-700">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                  <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                    stroke="currentColor" strokeWidth="2.5"
-                    strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-                5% discount applied
+                ₦200 item discount applied — you saved {fmt(discount)}
               </div>
             )}
           </aside>

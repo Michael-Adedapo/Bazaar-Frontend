@@ -3,9 +3,9 @@ export const MENU = [
   {
     category: 'Specials',
     items: [
-      { id: 'full-chicken',        name: 'Full Chicken',          price: 15000 },
+      { id: 'full-chicken',        name: 'Full Chicken',          price: 15000, discount: 200 },
       { id: 'catfish-pepper-soup', name: 'Catfish Pepper Soup',   price: 20000 },
-      { id: 'guinea-fowl',         name: 'Guinea Fowl',           price: 15000 },
+      { id: 'guinea-fowl',         name: 'Guinea Fowl',           price: 15000, discount: 200 },
       { id: 'Chef Ada\'s Special Fried Rice', name: 'Chef Ada\'s Special Fried Rice', price: 8000 },
     ]
   },
@@ -39,7 +39,6 @@ export const MENU = [
 ]
 
 export const ALL_ITEMS          = MENU.flatMap(g => g.items)
-export const DISCOUNT_THRESHOLD = 30_000
 
 // ─── Config (set these in .env) ──────────────────────────────────────────────
 export const WHATSAPP_NUMBER = import.meta.env.VITE_WHATSAPP_NUMBER 
