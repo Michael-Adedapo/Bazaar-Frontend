@@ -46,17 +46,23 @@ function StatusBadge({ status }) {
   )
 }
 
-function StatCard({ label, value, color }) {
+function StatCard({ label, value, color, active, onClick }) {
   return (
-    <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={`text-left bg-white rounded-xl p-4 border shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 ${
+        active ? 'border-orange-400 ring-1 ring-orange-200' : 'border-gray-100 hover:border-orange-200'
+      }`}
+    >
       <p className="text-xs text-gray-500 mb-1">{label}</p>
       <p className={`text-2xl font-bold ${color}`}>{value}</p>
-    </div>
+    </button>
   )
 }
 
 function BestSellers({ orders }) {
-  // Aggregate item quantities across all orders
   const counts = {}
   orders.forEach(o => {
     if (!Array.isArray(o.items)) return
@@ -146,11 +152,12 @@ export default function AdminDashboard({ onLogout }) {
         body: JSON.stringify({ status }),
       })
       if (res.status === 401) { onLogout(); return }
+      if (!res.ok) throw new Error(`Request failed with status ${res.status}`)
       setOrders(prev =>
-        prev.map(o => (o._id === id || o.ref === id) ? { ...o, status } : o)
+        prev.map(o => (getId(o) === id) ? { ...o, status } : o)
       )
     } catch {
-      alert('Failed to update order status')
+      alert('Failed to update order status. Please try again.')
     }
   }
 
@@ -160,7 +167,7 @@ export default function AdminDashboard({ onLogout }) {
   }
 
   const counts = {
-    all:       orders.length,
+    all:       orders.filter(o => o.status !== 'cancelled').length,
     pending:   orders.filter(o => !o.status || o.status === 'pending').length,
     confirmed: orders.filter(o => o.status === 'confirmed').length,
     cancelled: orders.filter(o => o.status === 'cancelled').length,
@@ -171,8 +178,9 @@ export default function AdminDashboard({ onLogout }) {
     .filter(o => o.status === 'confirmed')
     .reduce((sum, o) => sum + getOrderTotal(o), 0)
 
+  const activeOrders = orders.filter(o => o.status !== 'cancelled')
   const filtered =
-    filter === 'all' ? orders : orders.filter(o => (o.status || 'pending') === filter)
+    filter === 'all' ? activeOrders : orders.filter(o => (o.status || 'pending') === filter)
 
   const formatDate = (ts) => {
     if (!ts) return '—'
@@ -416,17 +424,17 @@ export default function AdminDashboard({ onLogout }) {
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
           {loading ? skeletonStats : (
             <>
-              <StatCard label="Total Sales (confirmed)" value={fmt(totalSales)} color="text-orange-600" />
-              <StatCard label="Total Orders"            value={counts.all}       color="text-gray-900" />
-              <StatCard label="Pending"                 value={counts.pending}   color="text-yellow-600" />
-              <StatCard label="Confirmed"               value={counts.confirmed} color="text-green-600" />
-              <StatCard label="Cancelled"               value={counts.cancelled} color="text-red-600" />
+              <StatCard label="Total Sales (confirmed)" value={fmt(totalSales)} color="text-orange-600" active={filter === 'confirmed'} onClick={() => setFilter('confirmed')} />
+              <StatCard label="Total Orders"            value={counts.all}       color="text-gray-900" active={filter === 'all'}       onClick={() => setFilter('all')} />
+              <StatCard label="Pending"                 value={counts.pending}   color="text-yellow-600" active={filter === 'pending'}   onClick={() => setFilter('pending')} />
+              <StatCard label="Confirmed"               value={counts.confirmed} color="text-green-600" active={filter === 'confirmed'} onClick={() => setFilter('confirmed')} />
+              <StatCard label="Cancelled"               value={counts.cancelled} color="text-red-600" active={filter === 'cancelled'} onClick={() => setFilter('cancelled')} />
             </>
           )}
         </div>
 
         {/* Best sellers */}
-        {!loading && !error && <BestSellers orders={orders} />}
+        {!loading && !error && <BestSellers orders={activeOrders} />}
 
         {/* Filter tabs */}
         <div className="flex gap-2 flex-wrap">
@@ -550,6 +558,12 @@ export default function AdminDashboard({ onLogout }) {
                               <button onClick={() => printReceipt(order)}
                                 className="text-xs bg-orange-50 text-orange-700 hover:bg-orange-100 px-2 py-1 rounded-lg font-medium transition-colors">
                                 Receipt
+                              </button>
+                            )}
+                            {status === 'cancelled' && (
+                              <button onClick={() => updateStatus(id, 'pending')}
+                                className="text-xs bg-gray-50 text-gray-600 hover:bg-gray-100 px-2 py-1 rounded-lg font-medium transition-colors">
+                                Undo
                               </button>
                             )}
                           </div>
