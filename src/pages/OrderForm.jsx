@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { MENU, ALL_ITEMS, API_URL } from '../config'
 import { fmt, localRef } from '../utils'
 
@@ -26,15 +26,30 @@ export default function OrderForm({ onComplete }) {
   const [phone, setPhone] = useState(draft?.phone ?? '')
   const [busy, setBusy]   = useState(false)
   const [error, setError] = useState(null)
+  const [croakerStock, setCroakerStock] = useState(null)
+  const [stockError, setStockError] = useState('')
 
   // Save draft to localStorage whenever cart, name, or phone changes
   useEffect(() => {
     saveDraft({ cart, name, phone })
   }, [cart, name, phone])
 
+  const fetchCroakerStock = useCallback(async () => {
+    const res = await fetch(`${API_URL}/api/inventory/croaker-fish`)
+    if (!res.ok) throw new Error(`Could not load stock (HTTP ${res.status})`)
+    const data = await res.json()
+    setCroakerStock(data.remaining)
+    setStockError('')
+  }, [])
+
+  useEffect(() => {
+    fetchCroakerStock().catch(() => setStockError('Could not check availability.'))
+  }, [fetchCroakerStock])
+
   function changeQty(id, delta) {
     setCart(prev => {
       const next = Math.max(0, (prev[id] || 0) + delta)
+      if (id === 'Croaker fish' && delta > 0 && (croakerStock === null || next > croakerStock)) return prev
       if (next === 0) { const c = { ...prev }; delete c[id]; return c }
       return { ...prev, [id]: next }
     })
@@ -54,6 +69,14 @@ export default function OrderForm({ onComplete }) {
   async function handleSubmit(e) {
     e.preventDefault()
     if (!cartEntries.length) { setError('Select at least one item to continue.'); return }
+    const croakerQuantity = cart['Croaker fish'] || 0
+    if (croakerQuantity > 0 && (croakerStock === null || croakerQuantity > croakerStock)) {
+      setError(croakerStock === null
+        ? 'Croaker Fish availability could not be checked. Please retry the availability check.'
+        : `Only ${croakerStock} Croaker Fish remaining. Please update your order.`)
+      return
+    }
+
     setBusy(true); setError(null)
 
     const items = cartEntries.map(([id, quantity]) => {
@@ -69,17 +92,27 @@ export default function OrderForm({ onComplete }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ customer_name: name, customer_phone: phone, items }),
       })
-      if (res.ok) {
+      if (!res.ok) {
         const data = await res.json()
-        order_id = data.order_id ?? order_id
+        setError(data.detail ?? 'Could not save your order. Please try again.')
+        if (res.status === 409) {
+          fetchCroakerStock().catch(() => setStockError('Could not check availability.'))
+        }
+        return
       }
+      const data = await res.json()
+      order_id = data.order_id ?? order_id
     } catch {
-      // Backend unreachable — continue with local ref, WhatsApp is the source of truth
+      if (croakerQuantity > 0) {
+        setError('Could not verify Croaker Fish availability. Check your connection and try again.')
+        return
+      }
+    } finally {
+      setBusy(false)
     }
 
     // Draft is NOT cleared here — cleared only after payment is confirmed
     onComplete({ order_id, customer_name: name, customer_phone: phone, items, subtotal, discount, total })
-    setBusy(false)
   }
 
   return (
@@ -142,6 +175,9 @@ export default function OrderForm({ onComplete }) {
                     text-[#B85C72] mb-1 px-0.5">{category}</span>
                   {items.map(item => {
                     const qty = cart[item.id] || 0
+                    const isCroaker = item.id === 'Croaker fish'
+                    const disableAdd = isCroaker &&
+                      (croakerStock === null || croakerStock === 0 || qty >= croakerStock)
                     return (
                       <div key={item.id}
                         className="flex items-center justify-between py-2.5
@@ -162,6 +198,22 @@ export default function OrderForm({ onComplete }) {
                               </>
                             ) : fmt(item.price)}
                           </p>
+                          {isCroaker && (
+                            <p className="text-xs font-medium text-[#9E8E92] mt-0.5" aria-live="polite">
+                              {stockError ? (
+                                <span>
+                                  {stockError}{' '}
+                                  <button type="button"
+                                    onClick={() => fetchCroakerStock().catch(() => setStockError('Could not check availability.'))}
+                                    className="text-[#B85C72] underline">
+                                    Retry
+                                  </button>
+                                </span>
+                              ) : croakerStock === null ? 'Checking availability…'
+                                : croakerStock === 0 ? 'Sold out'
+                                  : `${croakerStock} remaining`}
+                            </p>
+                          )}
                         </div>
                         <div className="flex items-center gap-2 shrink-0"
                           role="group" aria-label={`${item.name} quantity`}>
@@ -177,11 +229,13 @@ export default function OrderForm({ onComplete }) {
                             tabular-nums select-none" aria-live="polite">{qty}</span>
                           <button type="button"
                             onClick={() => changeQty(item.id, 1)}
+                            disabled={disableAdd}
                             aria-label={`Add ${item.name}`}
                             className="w-9 h-9 rounded-[9px] bg-[#FFC5D3] border-[1.5px]
                               border-[#FFC5D3] text-[#1A1215] text-lg font-bold
                               flex items-center justify-center
                               hover:bg-[#FFB0C2] hover:border-[#FFB0C2] active:scale-90
+                              disabled:opacity-25 disabled:cursor-not-allowed
                               transition-all">+</button>
                         </div>
                       </div>

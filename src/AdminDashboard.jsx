@@ -121,11 +121,15 @@ export default function AdminDashboard({ onLogout }) {
         body: JSON.stringify({ status }),
       })
       if (res.status === 401) { onLogout(); return }
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.detail ?? `Request failed with status ${res.status}`)
+      }
       setOrders(prev =>
         prev.map(o => (o._id === id || o.ref === id) ? { ...o, status } : o)
       )
-    } catch {
-      alert('Failed to update order status')
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'Failed to update order status')
     }
   }
 
