@@ -6,6 +6,16 @@ function fmt(n) {
   return '₦' + Number(n ?? 0).toLocaleString('en-NG')
 }
 
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, char => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;',
+  })[char])
+}
+
 function getOrderTotal(order) {
   if (Array.isArray(order.items) && order.items.length > 0) {
     const itemTotals = order.items.map(item => {
@@ -189,6 +199,82 @@ export default function AdminDashboard({ onLogout }) {
   // Field name helpers — backend saves customer_name / customer_phone
   const getName  = (o) => o.customer_name  ?? o.name  ?? '—'
   const getPhone = (o) => o.customer_phone ?? o.phone ?? o.whatsapp ?? '—'
+
+  const printReceipt = (order) => {
+    const id = String(getId(order))
+    const items = Array.isArray(order.items) ? order.items : []
+    const rows = items.map(item => {
+      const quantity = Number(item.quantity ?? item.qty ?? 1)
+      const price = Number(item.price ?? 0)
+      return `
+        <tr>
+          <td>${escapeHtml(item.name ?? item.id ?? 'Item')}</td>
+          <td class="number">${quantity}</td>
+          <td class="number">${fmt(price)}</td>
+          <td class="number">${fmt(price * quantity)}</td>
+        </tr>`
+    }).join('')
+    const createdAt = order.created_at
+      ? new Date(order.created_at).toLocaleString('en-NG', {
+          day: 'numeric', month: 'long', year: 'numeric',
+          hour: '2-digit', minute: '2-digit',
+        })
+      : '—'
+
+    const html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>BOL Bazaar — Receipt ${escapeHtml(id.slice(-8).toUpperCase())}</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: Arial, sans-serif; color: #111; max-width: 720px; margin: 40px auto; padding: 0 24px; }
+    header { border-bottom: 2px solid #ea580c; padding-bottom: 16px; margin-bottom: 24px; }
+    h1 { color: #ea580c; margin: 0 0 6px; }
+    p { margin: 5px 0; }
+    .label { color: #666; }
+    .details { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 24px; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 10px 8px; border-bottom: 1px solid #ddd; text-align: left; }
+    th { background: #fff7ed; }
+    .number { text-align: right; white-space: nowrap; }
+    .total { text-align: right; font-size: 18px; font-weight: 700; margin-top: 20px; }
+    .status { color: #15803d; font-weight: 700; text-transform: capitalize; }
+    @media print { body { margin: 0 auto; } }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>BOL Bazaar</h1>
+    <p>Order Receipt</p>
+  </header>
+  <section class="details">
+    <div><p class="label">Customer</p><p>${escapeHtml(getName(order))}</p></div>
+    <div><p class="label">WhatsApp</p><p>${escapeHtml(getPhone(order))}</p></div>
+    <div><p class="label">Order reference</p><p>${escapeHtml(id.slice(-8).toUpperCase())}</p></div>
+    <div><p class="label">Date</p><p>${escapeHtml(createdAt)}</p></div>
+    <div><p class="label">Status</p><p class="status">${escapeHtml(order.status ?? 'confirmed')}</p></div>
+  </section>
+  <table>
+    <thead><tr><th>Item</th><th class="number">Qty</th><th class="number">Unit price</th><th class="number">Amount</th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table>
+  <p class="total">Total: ${fmt(getOrderTotal(order))}</p>
+</body>
+</html>`
+
+    const win = window.open('', '_blank')
+    if (!win) {
+      window.alert('Could not open the receipt. Please allow pop-ups and try again.')
+      return
+    }
+
+    win.document.open()
+    win.document.write(html)
+    win.document.close()
+    win.focus()
+    setTimeout(() => win.print(), 300)
+  }
 
   const exportPDF = () => {
     const date = new Date().toLocaleDateString('en-NG', { day: 'numeric', month: 'long', year: 'numeric' })
@@ -459,6 +545,12 @@ export default function AdminDashboard({ onLogout }) {
                               <button onClick={() => updateStatus(id, 'pending')}
                                 className="text-xs bg-gray-50 text-gray-600 hover:bg-gray-100 px-2 py-1 rounded-lg font-medium transition-colors">
                                 Undo
+                              </button>
+                            )}
+                            {status === 'confirmed' && (
+                              <button onClick={() => printReceipt(order)}
+                                className="text-xs bg-orange-50 text-orange-700 hover:bg-orange-100 px-2 py-1 rounded-lg font-medium transition-colors">
+                                Receipt
                               </button>
                             )}
                           </div>
