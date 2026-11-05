@@ -285,8 +285,9 @@ export default function AdminDashboard({ onLogout }) {
 
   const exportPDF = () => {
     const date = new Date().toLocaleDateString('en-NG', { day: 'numeric', month: 'long', year: 'numeric' })
+    const exportOrders = orders.filter(order => order.status !== 'cancelled')
 
-    const rows = orders.map(o => {
+    const rows = exportOrders.map(o => {
       const total = getOrderTotal(o)
       const items = Array.isArray(o.items)
         ? o.items.map(i => {
@@ -345,7 +346,7 @@ export default function AdminDashboard({ onLogout }) {
       <p>Sales Report — Generated ${date}</p>
     </div>
     <div style="text-align:right">
-      <p style="font-size:13px;font-weight:700">Total Orders: ${orders.length}</p>
+      <p style="font-size:13px;font-weight:700">Total Orders: ${exportOrders.length}</p>
       <p style="font-size:13px;font-weight:700;color:#16a34a">Total Sales: ₦${Number(totalSales).toLocaleString('en-NG')}</p>
     </div>
   </header>
