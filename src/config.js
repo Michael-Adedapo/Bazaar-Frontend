@@ -19,6 +19,7 @@ export const MENU = [
       { id: 'peppered-ponmo',      name: 'Peppered Ponmo (Bowl)',        price:  1500 },
       { id: 'moi-moi-egg',         name: 'Moi-Moi (With Egg)',           price:  1000 },
       { id: 'moi-moi-no-egg',      name: 'Moi-Moi (Without Egg)',        price:   700 },
+      { id: 'Croaker fish',        name: 'Croaker Fish',                 price:  4500 },
       { id: 'chicken-laps',        name: 'Chicken Laps',                 price:  5000 },
     ]
   },
