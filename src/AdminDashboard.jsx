@@ -6,6 +6,22 @@ function fmt(n) {
   return '₦' + Number(n ?? 0).toLocaleString('en-NG')
 }
 
+function getOrderTotal(order) {
+  if (Array.isArray(order.items) && order.items.length > 0) {
+    const itemTotals = order.items.map(item => {
+      const price = Number(item.price)
+      const quantity = Number(item.quantity ?? item.qty ?? 1)
+      return Number.isFinite(price) && Number.isFinite(quantity) ? price * quantity : null
+    })
+
+    if (itemTotals.every(total => total !== null)) {
+      return itemTotals.reduce((sum, total) => sum + total, 0)
+    }
+  }
+
+  return Number(order.total ?? order.pricing?.amount_due ?? 0)
+}
+
 function StatusBadge({ status }) {
   const map = {
     pending:   'bg-yellow-100 text-yellow-700',
@@ -144,7 +160,7 @@ export default function AdminDashboard({ onLogout }) {
   // Total sales = sum of all confirmed order totals
   const totalSales = orders
     .filter(o => o.status === 'confirmed')
-    .reduce((sum, o) => sum + (o.total ?? o.pricing?.amount_due ?? 0), 0)
+    .reduce((sum, o) => sum + getOrderTotal(o), 0)
 
   const filtered =
     filter === 'all' ? orders : orders.filter(o => (o.status || 'pending') === filter)
@@ -178,7 +194,7 @@ export default function AdminDashboard({ onLogout }) {
     const date = new Date().toLocaleDateString('en-NG', { day: 'numeric', month: 'long', year: 'numeric' })
 
     const rows = orders.map(o => {
-      const total = o.total ?? o.pricing?.amount_due ?? 0
+      const total = getOrderTotal(o)
       const items = Array.isArray(o.items)
         ? o.items.map(i => {
             const qty = i.quantity ?? i.qty ?? 1
@@ -417,7 +433,7 @@ export default function AdminDashboard({ onLogout }) {
                           <span className="line-clamp-2">{formatItems(order.items)}</span>
                         </td>
                         <td className="px-4 py-3 text-right font-semibold text-gray-900 whitespace-nowrap">
-                          {fmt(order.total ?? order.pricing?.amount_due)}
+                          {fmt(getOrderTotal(order))}
                         </td>
                         <td className="px-4 py-3 text-gray-500 text-xs whitespace-nowrap">
                           {formatDate(order.created_at)}
