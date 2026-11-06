@@ -18,7 +18,6 @@ export const MENU = [
       { id: 'jollof-rice-chicken', name: 'Jollof Rice & Chicken Laps',   price:  8000 },
       { id: 'peppered-ponmo',      name: 'Peppered Ponmo (Bowl)',        price:  1500 },
       { id: 'moi-moi-egg',         name: 'Moi-Moi (With Egg)',           price:  1000 },
-      { id: 'moi-moi-no-egg',      name: 'Moi-Moi (Without Egg)',        price:   700 },
       { id: 'Croaker fish',        name: 'Croaker Fish',                 price:  4500 },
       { id: 'chicken-laps',        name: 'Chicken Laps',                 price:  5000 },
     ]
