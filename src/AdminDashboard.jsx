@@ -6,6 +6,32 @@ function fmt(n) {
   return '₦' + Number(n ?? 0).toLocaleString('en-NG')
 }
 
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, char => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;',
+  })[char])
+}
+
+function getOrderTotal(order) {
+  if (Array.isArray(order.items) && order.items.length > 0) {
+    const itemTotals = order.items.map(item => {
+      const price = Number(item.price)
+      const quantity = Number(item.quantity ?? item.qty ?? 1)
+      return Number.isFinite(price) && Number.isFinite(quantity) ? price * quantity : null
+    })
+
+    if (itemTotals.every(total => total !== null)) {
+      return itemTotals.reduce((sum, total) => sum + total, 0)
+    }
+  }
+
+  return Number(order.total ?? order.pricing?.amount_due ?? 0)
+}
+
 function StatusBadge({ status }) {
   const map = {
     pending:   'bg-yellow-100 text-yellow-700',
@@ -20,17 +46,23 @@ function StatusBadge({ status }) {
   )
 }
 
-function StatCard({ label, value, color }) {
+function StatCard({ label, value, color, active, onClick }) {
   return (
-    <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={`text-left bg-white rounded-xl p-4 border shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 ${
+        active ? 'border-orange-400 ring-1 ring-orange-200' : 'border-gray-100 hover:border-orange-200'
+      }`}
+    >
       <p className="text-xs text-gray-500 mb-1">{label}</p>
       <p className={`text-2xl font-bold ${color}`}>{value}</p>
-    </div>
+    </button>
   )
 }
 
 function BestSellers({ orders }) {
-  // Aggregate item quantities across all orders
   const counts = {}
   orders.forEach(o => {
     if (!Array.isArray(o.items)) return
@@ -78,11 +110,10 @@ function BestSellers({ orders }) {
 }
 
 export default function AdminDashboard({ onLogout }) {
-  const [orders, setOrders]   = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError]     = useState('')
-  const [filter, setFilter]   = useState('all')
-
+  const [orders, setOrders]         = useState([])
+  const [loading, setLoading]       = useState(true)
+  const [error, setError]           = useState('')
+  const [filter, setFilter]         = useState('all')
   const token = sessionStorage.getItem('admin_token')
 
   const authedFetch = useCallback(
@@ -126,7 +157,7 @@ export default function AdminDashboard({ onLogout }) {
         throw new Error(data.detail ?? `Request failed with status ${res.status}`)
       }
       setOrders(prev =>
-        prev.map(o => (o._id === id || o.ref === id) ? { ...o, status } : o)
+        prev.map(o => (getId(o) === id) ? { ...o, status } : o)
       )
     } catch (error) {
       alert(error instanceof Error ? error.message : 'Failed to update order status')
@@ -139,7 +170,7 @@ export default function AdminDashboard({ onLogout }) {
   }
 
   const counts = {
-    all:       orders.length,
+    all:       orders.filter(o => o.status !== 'cancelled').length,
     pending:   orders.filter(o => !o.status || o.status === 'pending').length,
     confirmed: orders.filter(o => o.status === 'confirmed').length,
     cancelled: orders.filter(o => o.status === 'cancelled').length,
@@ -148,10 +179,11 @@ export default function AdminDashboard({ onLogout }) {
   // Total sales = sum of all confirmed order totals
   const totalSales = orders
     .filter(o => o.status === 'confirmed')
-    .reduce((sum, o) => sum + (o.total ?? o.pricing?.amount_due ?? 0), 0)
+    .reduce((sum, o) => sum + getOrderTotal(o), 0)
 
+  const activeOrders = orders.filter(o => o.status !== 'cancelled')
   const filtered =
-    filter === 'all' ? orders : orders.filter(o => (o.status || 'pending') === filter)
+    filter === 'all' ? activeOrders : orders.filter(o => (o.status || 'pending') === filter)
 
   const formatDate = (ts) => {
     if (!ts) return '—'
@@ -178,11 +210,88 @@ export default function AdminDashboard({ onLogout }) {
   const getName  = (o) => o.customer_name  ?? o.name  ?? '—'
   const getPhone = (o) => o.customer_phone ?? o.phone ?? o.whatsapp ?? '—'
 
+  const printReceipt = (order) => {
+    const id = String(getId(order))
+    const items = Array.isArray(order.items) ? order.items : []
+    const rows = items.map(item => {
+      const quantity = Number(item.quantity ?? item.qty ?? 1)
+      const price = Number(item.price ?? 0)
+      return `
+        <tr>
+          <td>${escapeHtml(item.name ?? item.id ?? 'Item')}</td>
+          <td class="number">${quantity}</td>
+          <td class="number">${fmt(price)}</td>
+          <td class="number">${fmt(price * quantity)}</td>
+        </tr>`
+    }).join('')
+    const createdAt = order.created_at
+      ? new Date(order.created_at).toLocaleString('en-NG', {
+          day: 'numeric', month: 'long', year: 'numeric',
+          hour: '2-digit', minute: '2-digit',
+        })
+      : '—'
+
+    const html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>BOL Bazaar — Receipt ${escapeHtml(id.slice(-8).toUpperCase())}</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: Arial, sans-serif; color: #111; max-width: 720px; margin: 40px auto; padding: 0 24px; }
+    header { border-bottom: 2px solid #ea580c; padding-bottom: 16px; margin-bottom: 24px; }
+    h1 { color: #ea580c; margin: 0 0 6px; }
+    p { margin: 5px 0; }
+    .label { color: #666; }
+    .details { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 24px; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 10px 8px; border-bottom: 1px solid #ddd; text-align: left; }
+    th { background: #fff7ed; }
+    .number { text-align: right; white-space: nowrap; }
+    .total { text-align: right; font-size: 18px; font-weight: 700; margin-top: 20px; }
+    .status { color: #15803d; font-weight: 700; text-transform: capitalize; }
+    @media print { body { margin: 0 auto; } }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>BOL Bazaar</h1>
+    <p>Order Receipt</p>
+  </header>
+  <section class="details">
+    <div><p class="label">Customer</p><p>${escapeHtml(getName(order))}</p></div>
+    <div><p class="label">WhatsApp</p><p>${escapeHtml(getPhone(order))}</p></div>
+    <div><p class="label">Order reference</p><p>${escapeHtml(id.slice(-8).toUpperCase())}</p></div>
+    <div><p class="label">Date</p><p>${escapeHtml(createdAt)}</p></div>
+    <div><p class="label">Status</p><p class="status">${escapeHtml(order.status ?? 'confirmed')}</p></div>
+  </section>
+  <table>
+    <thead><tr><th>Item</th><th class="number">Qty</th><th class="number">Unit price</th><th class="number">Amount</th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table>
+  <p class="total">Total: ${fmt(getOrderTotal(order))}</p>
+</body>
+</html>`
+
+    const win = window.open('', '_blank')
+    if (!win) {
+      window.alert('Could not open the receipt. Please allow pop-ups and try again.')
+      return
+    }
+
+    win.document.open()
+    win.document.write(html)
+    win.document.close()
+    win.focus()
+    setTimeout(() => win.print(), 300)
+  }
+
   const exportPDF = () => {
     const date = new Date().toLocaleDateString('en-NG', { day: 'numeric', month: 'long', year: 'numeric' })
+    const exportOrders = orders.filter(order => order.status !== 'cancelled')
 
-    const rows = orders.map(o => {
-      const total = o.total ?? o.pricing?.amount_due ?? 0
+    const rows = exportOrders.map(o => {
+      const total = getOrderTotal(o)
       const items = Array.isArray(o.items)
         ? o.items.map(i => {
             const qty = i.quantity ?? i.qty ?? 1
@@ -240,7 +349,7 @@ export default function AdminDashboard({ onLogout }) {
       <p>Sales Report — Generated ${date}</p>
     </div>
     <div style="text-align:right">
-      <p style="font-size:13px;font-weight:700">Total Orders: ${orders.length}</p>
+      <p style="font-size:13px;font-weight:700">Total Orders: ${exportOrders.length}</p>
       <p style="font-size:13px;font-weight:700;color:#16a34a">Total Sales: ₦${Number(totalSales).toLocaleString('en-NG')}</p>
     </div>
   </header>
@@ -319,17 +428,17 @@ export default function AdminDashboard({ onLogout }) {
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
           {loading ? skeletonStats : (
             <>
-              <StatCard label="Total Sales (confirmed)" value={fmt(totalSales)} color="text-orange-600" />
-              <StatCard label="Total Orders"            value={counts.all}       color="text-gray-900" />
-              <StatCard label="Pending"                 value={counts.pending}   color="text-yellow-600" />
-              <StatCard label="Confirmed"               value={counts.confirmed} color="text-green-600" />
-              <StatCard label="Cancelled"               value={counts.cancelled} color="text-red-600" />
+              <StatCard label="Total Sales (confirmed)" value={fmt(totalSales)} color="text-orange-600" active={filter === 'confirmed'} onClick={() => setFilter('confirmed')} />
+              <StatCard label="Total Orders"            value={counts.all}       color="text-gray-900" active={filter === 'all'}       onClick={() => setFilter('all')} />
+              <StatCard label="Pending"                 value={counts.pending}   color="text-yellow-600" active={filter === 'pending'}   onClick={() => setFilter('pending')} />
+              <StatCard label="Confirmed"               value={counts.confirmed} color="text-green-600" active={filter === 'confirmed'} onClick={() => setFilter('confirmed')} />
+              <StatCard label="Cancelled"               value={counts.cancelled} color="text-red-600" active={filter === 'cancelled'} onClick={() => setFilter('cancelled')} />
             </>
           )}
         </div>
 
         {/* Best sellers */}
-        {!loading && !error && <BestSellers orders={orders} />}
+        {!loading && !error && <BestSellers orders={activeOrders} />}
 
         {/* Filter tabs */}
         <div className="flex gap-2 flex-wrap">
@@ -421,7 +530,7 @@ export default function AdminDashboard({ onLogout }) {
                           <span className="line-clamp-2">{formatItems(order.items)}</span>
                         </td>
                         <td className="px-4 py-3 text-right font-semibold text-gray-900 whitespace-nowrap">
-                          {fmt(order.total ?? order.pricing?.amount_due)}
+                          {fmt(getOrderTotal(order))}
                         </td>
                         <td className="px-4 py-3 text-gray-500 text-xs whitespace-nowrap">
                           {formatDate(order.created_at)}
@@ -444,6 +553,18 @@ export default function AdminDashboard({ onLogout }) {
                               </button>
                             )}
                             {status === 'confirmed' && (
+                              <button onClick={() => updateStatus(id, 'pending')}
+                                className="text-xs bg-gray-50 text-gray-600 hover:bg-gray-100 px-2 py-1 rounded-lg font-medium transition-colors">
+                                Undo
+                              </button>
+                            )}
+                            {status === 'confirmed' && (
+                              <button onClick={() => printReceipt(order)}
+                                className="text-xs bg-orange-50 text-orange-700 hover:bg-orange-100 px-2 py-1 rounded-lg font-medium transition-colors">
+                                Receipt
+                              </button>
+                            )}
+                            {status === 'cancelled' && (
                               <button onClick={() => updateStatus(id, 'pending')}
                                 className="text-xs bg-gray-50 text-gray-600 hover:bg-gray-100 px-2 py-1 rounded-lg font-medium transition-colors">
                                 Undo
