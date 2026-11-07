@@ -3,6 +3,19 @@ import { MENU, ALL_ITEMS, API_URL } from '../config'
 import { fmt, localRef } from '../utils'
 
 const LS_KEY = 'bol_bazaar_draft'
+const STOCKED_ITEMS = new Set([
+  'guinness-small', 'malta-guinness', 'amstel-malta', 'desperados',
+  'smirnoff-ice', 'heineken', 'water', 'soft-drinks', 'star-radler',
+  'gulder', 'chicken-laps', 'croaker-fish', 'full-chicken',
+  'catfish-pepper-soup', 'guinea-fowl', 'special-fried-rice',
+])
+
+function getInventoryKey(id) {
+  const normalized = id.toLowerCase().trim().replace(/'/g, '').replace(/\s+/g, '-')
+  if (normalized === 'chef-adas-special-fried-rice') return 'special-fried-rice'
+  if (normalized === 'jollof-rice-chicken') return 'chicken-laps'
+  return normalized
+}
 
 function loadDraft() {
   try {
@@ -26,7 +39,7 @@ export default function OrderForm({ onComplete }) {
   const [phone, setPhone] = useState(draft?.phone ?? '')
   const [busy, setBusy]   = useState(false)
   const [error, setError] = useState(null)
-  const [croakerStock, setCroakerStock] = useState(null)
+  const [inventory, setInventory] = useState(null)
   const [stockError, setStockError] = useState('')
 
   // Save draft to localStorage whenever cart, name, or phone changes
@@ -34,22 +47,29 @@ export default function OrderForm({ onComplete }) {
     saveDraft({ cart, name, phone })
   }, [cart, name, phone])
 
-  const fetchCroakerStock = useCallback(async () => {
-    const res = await fetch(`${API_URL}/api/inventory/croaker-fish`)
+  const fetchInventory = useCallback(async () => {
+    const res = await fetch(`${API_URL}/api/inventory`)
     if (!res.ok) throw new Error(`Could not load stock (HTTP ${res.status})`)
     const data = await res.json()
-    setCroakerStock(data.remaining)
+    setInventory(Object.fromEntries(data.map(item => [item.id, item])))
     setStockError('')
   }, [])
 
   useEffect(() => {
-    fetchCroakerStock().catch(() => setStockError('Could not check availability.'))
-  }, [fetchCroakerStock])
+    let active = true
+    Promise.resolve()
+      .then(() => active ? fetchInventory() : null)
+      .catch(() => setStockError('Could not check availability.'))
+    return () => { active = false }
+  }, [fetchInventory])
 
   function changeQty(id, delta) {
     setCart(prev => {
       const next = Math.max(0, (prev[id] || 0) + delta)
-      if (id === 'Croaker fish' && delta > 0 && (croakerStock === null || next > croakerStock)) return prev
+      const key = getInventoryKey(id)
+      const isTracked = STOCKED_ITEMS.has(key)
+      const remaining = inventory?.[key]?.remaining
+      if (delta > 0 && isTracked && (remaining === undefined || next > remaining)) return prev
       if (next === 0) { const c = { ...prev }; delete c[id]; return c }
       return { ...prev, [id]: next }
     })
@@ -60,28 +80,29 @@ export default function OrderForm({ onComplete }) {
     const it = ALL_ITEMS.find(x => x.id === id)
     return s + (it ? it.price * q : 0)
   }, 0)
-  const discount = cartEntries.reduce((s, [id, q]) => {
-    const it = ALL_ITEMS.find(x => x.id === id)
-    return s + (it ? (it.discount || 0) * q : 0)
-  }, 0)
-  const total    = subtotal - discount
+  const total = subtotal
 
   async function handleSubmit(e) {
     e.preventDefault()
     if (!cartEntries.length) { setError('Select at least one item to continue.'); return }
-    const croakerQuantity = cart['Croaker fish'] || 0
-    if (croakerQuantity > 0 && (croakerStock === null || croakerQuantity > croakerStock)) {
-      setError(croakerStock === null
-        ? 'Croaker Fish availability could not be checked. Please retry the availability check.'
-        : `Only ${croakerStock} Croaker Fish remaining. Please update your order.`)
-      return
+    for (const [id, quantity] of cartEntries) {
+      const key = getInventoryKey(id)
+      if (!STOCKED_ITEMS.has(key)) continue
+      const remaining = inventory?.[key]?.remaining
+      if (remaining === undefined || quantity > remaining) {
+        const name = ALL_ITEMS.find(item => item.id === id)?.name ?? id
+        setError(remaining === undefined
+          ? `${name} availability could not be checked. Please retry the availability check.`
+          : `There is not enough ${name} available for this order. Please update your order.`)
+        return
+      }
     }
 
     setBusy(true); setError(null)
 
     const items = cartEntries.map(([id, quantity]) => {
       const it = ALL_ITEMS.find(x => x.id === id)
-      return { id, name: it.name, price: it.price - (it.discount || 0), quantity }
+      return { id, name: it.name, price: it.price, quantity }
     })
 
     let order_id = localRef()
@@ -94,17 +115,19 @@ export default function OrderForm({ onComplete }) {
       })
       if (!res.ok) {
         const data = await res.json()
-        setError(data.detail ?? 'Could not save your order. Please try again.')
+        setError(res.status === 409
+          ? 'Item availability has changed. Please update your order and try again.'
+          : data.detail ?? 'Could not save your order. Please try again.')
         if (res.status === 409) {
-          fetchCroakerStock().catch(() => setStockError('Could not check availability.'))
+          fetchInventory().catch(() => setStockError('Could not check availability.'))
         }
         return
       }
       const data = await res.json()
       order_id = data.order_id ?? order_id
     } catch {
-      if (croakerQuantity > 0) {
-        setError('Could not verify Croaker Fish availability. Check your connection and try again.')
+      if (cartEntries.some(([id]) => STOCKED_ITEMS.has(getInventoryKey(id)))) {
+        setError('Could not verify item availability. Check your connection and try again.')
         return
       }
     } finally {
@@ -112,7 +135,7 @@ export default function OrderForm({ onComplete }) {
     }
 
     // Draft is NOT cleared here — cleared only after payment is confirmed
-    onComplete({ order_id, customer_name: name, customer_phone: phone, items, subtotal, discount, total })
+    onComplete({ order_id, customer_name: name, customer_phone: phone, items, subtotal, total })
   }
 
   return (
@@ -121,13 +144,9 @@ export default function OrderForm({ onComplete }) {
 
         {/* Header */}
         <header className="text-center mb-9">
-          <h1 className="text-4xl sm:text-5xl font-black tracking-tight text-[#1A1215] lowercase">
-            bazaar pre-order
+          <h1 className="text-4xl sm:text-5xl font-black tracking-tight text-[#1A1215]">
+            BOL Harvest Bazaar Menu
           </h1>
-          <p className="mt-2.5 text-xs text-[#9E8E92] font-medium">
-            Get <strong className="text-[#1A1215] font-bold">₦200 off</strong>{' '}
-            each Full Chicken and Guinea Fowl
-          </p>
         </header>
 
         <form onSubmit={handleSubmit}
@@ -175,9 +194,11 @@ export default function OrderForm({ onComplete }) {
                     text-[#B85C72] mb-1 px-0.5">{category}</span>
                   {items.map(item => {
                     const qty = cart[item.id] || 0
-                    const isCroaker = item.id === 'Croaker fish'
-                    const disableAdd = isCroaker &&
-                      (croakerStock === null || croakerStock === 0 || qty >= croakerStock)
+                    const inventoryKey = getInventoryKey(item.id)
+                    const isTracked = STOCKED_ITEMS.has(inventoryKey)
+                    const stockItem = inventory?.[inventoryKey]
+                    const disableAdd = isTracked &&
+                      (!stockItem || stockItem.remaining === 0 || qty >= stockItem.remaining)
                     return (
                       <div key={item.id}
                         className="flex items-center justify-between py-2.5
@@ -187,31 +208,22 @@ export default function OrderForm({ onComplete }) {
                             {item.name}
                           </p>
                           <p className="text-xs font-medium text-[#9E8E92] mt-0.5">
-                            {item.discount ? (
-                              <>
-                                <span className="line-through">{fmt(item.price)}</span>
-                                {' '}
-                                <span className="text-emerald-700 font-semibold">
-                                  {fmt(item.price - item.discount)}
-                                </span>
-                                <span className="text-emerald-700"> ({fmt(item.discount)} off)</span>
-                              </>
-                            ) : fmt(item.price)}
+                            {fmt(item.price)}
                           </p>
-                          {isCroaker && (
+                          {isTracked && (
                             <p className="text-xs font-medium text-[#9E8E92] mt-0.5" aria-live="polite">
                               {stockError ? (
                                 <span>
                                   {stockError}{' '}
                                   <button type="button"
-                                    onClick={() => fetchCroakerStock().catch(() => setStockError('Could not check availability.'))}
+                                    onClick={() => fetchInventory().catch(() => setStockError('Could not check availability.'))}
                                     className="text-[#B85C72] underline">
                                     Retry
                                   </button>
                                 </span>
-                              ) : croakerStock === null ? 'Checking availability…'
-                                : croakerStock === 0 ? 'Sold out'
-                                  : `${croakerStock} remaining`}
+                              ) : !stockItem ? 'Checking availability…'
+                                : stockItem.remaining === 0 ? 'Sold out'
+                                  : null}
                             </p>
                           )}
                         </div>
@@ -294,7 +306,7 @@ export default function OrderForm({ onComplete }) {
                             {it.name} <span className="text-[#C4B4B9]">×{qty}</span>
                           </span>
                           <span className="font-semibold text-[#1A1215] tabular-nums">
-                            {fmt((it.price - (it.discount || 0)) * qty)}
+                            {fmt(it.price * qty)}
                           </span>
                         </div>
                       )
@@ -306,12 +318,6 @@ export default function OrderForm({ onComplete }) {
                   <span className="text-[#9E8E92] font-medium">Subtotal</span>
                   <span className="font-semibold text-[#1A1215] tabular-nums">{fmt(subtotal)}</span>
                 </div>
-                {discount > 0 && (
-                  <div className="flex justify-between text-sm">
-                    <span className="text-emerald-700 font-bold">Discount</span>
-                    <span className="text-emerald-700 font-bold tabular-nums">−{fmt(discount)}</span>
-                  </div>
-                )}
                 <div className="flex justify-between items-baseline pt-3
                   border-t border-[#EAE2E5] mt-2">
                   <span className="font-black text-sm text-[#1A1215]">Total Due:</span>
@@ -321,12 +327,6 @@ export default function OrderForm({ onComplete }) {
                 </div>
               </div>
             </div>
-            {discount > 0 && (
-              <div className="mt-2.5 flex items-center gap-2 bg-emerald-50 border
-                border-emerald-200 rounded-xl px-4 py-3 text-xs font-semibold text-emerald-700">
-                ₦200 item discount applied — you saved {fmt(discount)}
-              </div>
-            )}
           </aside>
         </form>
       </div>

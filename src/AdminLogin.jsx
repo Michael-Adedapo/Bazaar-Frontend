@@ -34,7 +34,7 @@ export default function AdminLogin({ onLogin }) {
       <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-sm">
         <div className="text-center mb-8">
           <div className="text-4xl mb-3">🍽️</div>
-          <h1 className="text-2xl font-bold text-gray-900">BOL Bazaar</h1>
+          <h1 className="text-2xl font-bold text-gray-900">BOL Harvest Bazaar sale</h1>
           <p className="text-sm text-gray-500 mt-1">Admin access only</p>
         </div>
 

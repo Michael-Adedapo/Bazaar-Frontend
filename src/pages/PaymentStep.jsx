@@ -4,7 +4,7 @@ import CopyButton from '../components/CopyButton'
 import WhatsAppIcon from '../components/WhatsAppIcon'
 
 export default function PaymentStep({ order, onWhatsAppSent, onBack }) {
-  const { customer_phone, items, discount, total, order_id } = order
+  const { customer_phone, items, total, order_id } = order
 
   function sendToWhatsApp() {
     const msg = buildWhatsAppMessage(order)
@@ -55,11 +55,6 @@ export default function PaymentStep({ order, onWhatsAppSent, onBack }) {
           <p className="text-3xl font-black text-[#1A1215] tabular-nums leading-none">
             {fmt(total)}
           </p>
-          {discount > 0 && (
-            <p className="text-xs text-emerald-700 font-semibold mt-1.5">
-              Includes item discounts — you saved {fmt(discount)}
-            </p>
-          )}
         </div>
 
         {/* Bank details */}

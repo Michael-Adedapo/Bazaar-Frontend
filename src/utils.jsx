@@ -6,17 +6,13 @@ export function fmt(n) {
 }
 
 // Build the pre-filled WhatsApp message sent after payment
-export function buildWhatsAppMessage({ customer_name, customer_phone, items, subtotal, discount, total, order_id }) {
+export function buildWhatsAppMessage({ customer_name, customer_phone, items, subtotal, total, order_id }) {
   const itemLines = items
     .map(it => `  • ${it.name} ×${it.quantity} — ${fmt(it.price * it.quantity)}`)
     .join('\n')
 
-  const discountLine = discount > 0
-    ? `\nItem discount: −${fmt(discount)}`
-    : ''
-
   return [
-    `🛍 *BOL Bazaar Pre-Order — Payment Receipt*`,
+    `🛍 *BOL Harvest Bazaar sale — Payment Receipt*`,
     `─────────────────────────────────────────`,
     `📋 *Order Ref:* ${order_id}`,
     ``,
@@ -26,7 +22,7 @@ export function buildWhatsAppMessage({ customer_name, customer_phone, items, sub
     `🍽 *Order:*`,
     itemLines,
     `─────────────────────────────────────────`,
-    `Subtotal: ${fmt(subtotal)}${discountLine}`,
+    `Subtotal: ${fmt(subtotal)}`,
     `💰 *Amount Paid: ${fmt(total)}*`,
     ``,
     `_Payment made to ${ACCOUNT_NAME} — ${BANK_NAME}_`,
