@@ -3,15 +3,15 @@ export const MENU = [
   {
     category: 'Specials',
     items: [
-      { id: 'full-chicken',        name: 'Full Chicken',          price: 15000, discount: 200 },
+      { id: 'full-chicken',        name: 'Full Chicken',          price: 15000 },
       { id: 'catfish-pepper-soup', name: 'Catfish Pepper Soup',   price: 22500 },
-      { id: 'guinea-fowl',         name: 'Guinea Fowl',           price: 15000, discount: 200 },
+      { id: 'guinea-fowl',         name: 'Guinea Fowl',           price: 15000 },
       { id: 'Chef Ada\'s Special Fried Rice', name: 'Chef Ada\'s Special Fried Rice', price: 8500 },
       { id: 'Chef Ada\'s Special Shawarma', name: 'Chef Ada\'s Special Shawarma', price: 4500 },
     ]
   },
   {
-    category: 'Plates',
+    category: 'Plates', 
     items: [
       { id: 'jollof-rice',         name: 'Jollof Rice',                  price:  3500 },
       { id: 'jollof-rice-beef',    name: 'Jollof Rice & Beef',           price:  4500 },

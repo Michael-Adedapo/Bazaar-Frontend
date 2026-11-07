@@ -62,6 +62,29 @@ function StatCard({ label, value, color, active, onClick }) {
   )
 }
 
+function InventoryCount({ item }) {
+  const ordered = item.limit - item.remaining
+  const percentRemaining = item.limit > 0 ? (item.remaining / item.limit) * 100 : 0
+
+  return (
+    <div className="border-b border-gray-100 py-3 last:border-b-0">
+      <div className="flex items-baseline justify-between gap-3">
+        <p className="truncate text-sm font-medium text-gray-800">{item.name}</p>
+        <p className="shrink-0 text-sm font-semibold tabular-nums text-gray-900">
+          {item.remaining} <span className="font-normal text-gray-400">/ {item.limit} left</span>
+        </p>
+      </div>
+      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-gray-100">
+        <div
+          className="h-full rounded-full bg-emerald-500 transition-all"
+          style={{ width: `${percentRemaining}%` }}
+        />
+      </div>
+      <p className="mt-1 text-xs text-gray-500">{ordered} ordered</p>
+    </div>
+  )
+}
+
 function BestSellers({ orders }) {
   const counts = {}
   orders.forEach(o => {
@@ -112,6 +135,8 @@ function BestSellers({ orders }) {
 export default function AdminDashboard({ onLogout }) {
   const [orders, setOrders]         = useState([])
   const [loading, setLoading]       = useState(true)
+  const [inventory, setInventory]   = useState([])
+  const [inventoryError, setInventoryError] = useState('')
   const [error, setError]           = useState('')
   const [filter, setFilter]         = useState('all')
   const token = sessionStorage.getItem('admin_token')
@@ -142,7 +167,31 @@ export default function AdminDashboard({ onLogout }) {
     }
   }, [authedFetch, onLogout])
 
-  useEffect(() => { fetchOrders() }, [fetchOrders])
+  const fetchInventory = useCallback(async () => {
+    setInventoryError('')
+    try {
+      const res = await fetch(`${API}/api/inventory`)
+      if (!res.ok) throw new Error()
+      setInventory(await res.json())
+    } catch {
+      setInventoryError('Could not load item counts.')
+    }
+  }, [])
+
+  const refreshDashboard = () => {
+    fetchOrders()
+    fetchInventory()
+  }
+
+  useEffect(() => {
+    let active = true
+    Promise.resolve().then(() => {
+      if (!active) return
+      fetchOrders()
+      fetchInventory()
+    })
+    return () => { active = false }
+  }, [fetchInventory, fetchOrders])
 
   const updateStatus = async (id, status) => {
     try {
@@ -159,6 +208,7 @@ export default function AdminDashboard({ onLogout }) {
       setOrders(prev =>
         prev.map(o => (getId(o) === id) ? { ...o, status } : o)
       )
+      fetchInventory()
     } catch (error) {
       alert(error instanceof Error ? error.message : 'Failed to update order status')
     }
@@ -235,7 +285,7 @@ export default function AdminDashboard({ onLogout }) {
 <html>
 <head>
   <meta charset="utf-8">
-  <title>BOL Bazaar — Receipt ${escapeHtml(id.slice(-8).toUpperCase())}</title>
+  <title>BOL Harvest Bazaar sale — Receipt ${escapeHtml(id.slice(-8).toUpperCase())}</title>
   <style>
     * { box-sizing: border-box; }
     body { font-family: Arial, sans-serif; color: #111; max-width: 720px; margin: 40px auto; padding: 0 24px; }
@@ -255,7 +305,7 @@ export default function AdminDashboard({ onLogout }) {
 </head>
 <body>
   <header>
-    <h1>BOL Bazaar</h1>
+    <h1>BOL Harvest Bazaar sale</h1>
     <p>Order Receipt</p>
   </header>
   <section class="details">
@@ -317,7 +367,7 @@ export default function AdminDashboard({ onLogout }) {
 <html>
 <head>
   <meta charset="utf-8">
-  <title>BOL Bazaar — Sales Report</title>
+  <title>BOL Harvest Bazaar sale — Sales Report</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: Arial, sans-serif; font-size: 11px; color: #111; padding: 32px; }
@@ -345,7 +395,7 @@ export default function AdminDashboard({ onLogout }) {
 <body>
   <header>
     <div>
-      <h1>🍽️ BOL Bazaar</h1>
+      <h1>🍽️ BOL Harvest Bazaar sale</h1>
       <p>Sales Report — Generated ${date}</p>
     </div>
     <div style="text-align:right">
@@ -387,7 +437,7 @@ export default function AdminDashboard({ onLogout }) {
           <div className="flex items-center gap-3">
             <span className="text-2xl">🍽️</span>
             <div>
-              <h1 className="font-bold text-gray-900 leading-tight">BOL Bazaar</h1>
+              <h1 className="font-bold text-gray-900 leading-tight">BOL Harvest Bazaar sale</h1>
               <p className="text-xs text-gray-500">Admin Dashboard</p>
             </div>
           </div>
@@ -400,7 +450,7 @@ export default function AdminDashboard({ onLogout }) {
               ↓ Export PDF
             </button>
             <button
-              onClick={fetchOrders}
+              onClick={refreshDashboard}
               disabled={loading}
               className="text-sm text-gray-500 hover:text-gray-800 disabled:opacity-40 flex items-center gap-1.5"
             >
@@ -439,6 +489,25 @@ export default function AdminDashboard({ onLogout }) {
 
         {/* Best sellers */}
         {!loading && !error && <BestSellers orders={activeOrders} />}
+
+        {/* Inventory counts */}
+        <section className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
+          <div className="mb-2 flex items-center justify-between gap-3">
+            <h2 className="text-sm font-semibold text-gray-700">Item Counts</h2>
+            {inventory.length > 0 && (
+              <span className="text-xs text-gray-500">Remaining / starting count</span>
+            )}
+          </div>
+          {inventoryError ? (
+            <p className="py-3 text-sm text-red-600">{inventoryError}</p>
+          ) : inventory.length ? (
+            <div className="grid grid-cols-1 gap-x-8 sm:grid-cols-2 lg:grid-cols-3">
+              {inventory.map(item => <InventoryCount key={item.id} item={item} />)}
+            </div>
+          ) : (
+            <p className="py-3 text-sm text-gray-500">Loading item counts…</p>
+          )}
+        </section>
 
         {/* Filter tabs */}
         <div className="flex gap-2 flex-wrap">
